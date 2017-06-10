@@ -5,6 +5,7 @@ import math
 class Tree(object):
     def __init__(self):
         self.children = []
+        self.itemCount = 0
         self.pos = None
         self.data = []
 
@@ -49,6 +50,8 @@ def birch(data, t, b):
     # init with first item
     root.children.append(Tree())
     root.children[0].data.append(data[0, ])
+    root.children[0].pos = data[0, ]
+    root.children[0].itemCount = 1
 
     # sort all elements into tree based on distance
     for x in range(1,data.shape[0]):
@@ -77,6 +80,11 @@ def birch(data, t, b):
         # Would a merge violate the threshold  condition?
         if minDist < t:
             print 'no violation'
+            # Update the CF entry for the leaf
+
+
+        else:
+            print 'violation'
             # Would a merge violate the branching factor?
             if len(node.data) < b:
                 print 'add node'
@@ -84,8 +92,6 @@ def birch(data, t, b):
                 print node.data
             else:
                 print 'split'
-        else:
-            print 'violation'
 
 
 
