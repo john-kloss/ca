@@ -1,10 +1,21 @@
 import numpy as np
 import math
 
+
 class CFNode(object):
     def __init__(self, CFEntry):
         self.entries = [CFEntry]  # contains CFEntries
         self.isLeaf = True
+
+    def findFarthestEntries(self):
+        x = y = 0
+        maxDist = 0
+        for i in range(0,len(self.entries)):
+            for j in range(0, len(self.entries)):
+                if i != j:
+                    print i,j
+                    #calculateDistance(self.entries[i], self.entries[j])
+        return [self.entries[x], self.entries[y]]
 
 
 class CFEntry(object):
@@ -14,29 +25,22 @@ class CFEntry(object):
         self.ls = pos  # linear sum
         self.ss = pos  # square sum
 
+    def update(self, newEntry):
+        # self.count = self.count+1
+        # for each dimension
+        for x in range(0, self.ls.shape[1] - 1):
+            self.ls[0,x] = (self.ls[0,x] * self.count + newEntry.ls[0,x]) / (self.count+1)
 
-def printTree(tree):
-    for x in range(0, len(tree.children)):
-        print tree.children[x].data
+        self.count += self.count
+
 
 def calculateDistance(a, b):
     distance = 0
-    for x in range(0, len(a)):
-        distance = distance + math.sqrt(a[x, x] ** 2 + b[x, x] ** 2)
-    return distance
+    for x in range(0, a.ls.shape[1]-1):
+        print x
+        # distance = distance + math.sqrt(a.ls[0, x] ** 2 + b[0, x] ** 2)
+    return distance / a.ls.shape[1]
 
-
-# calculate the average position of a tree
-def posTree(tree):
-    pos = []
-    # for all dimension
-    for x in range(0, tree.data[0].shape[1] - 1):
-        count = 0
-        # for all data points
-        for y in range(0, len(tree.data)):
-            count = count + tree.data[y][0, x]
-        pos.append(count / len(tree.data))
-    return pos
 
 
 def birch(data, t, b):
@@ -47,10 +51,10 @@ def birch(data, t, b):
 
     # sort all elements into tree based on distance
     for x in range(1, data.shape[0]):
-        newEntry = data[x,]
+        newEntry = CFEntry(data[x,])
     # 1. Identifying the appropriate leaf
         node = root
-        closestLeaf = None
+        closestLeafEntry = None
         distance = 0
         while True:
             minDist = 1000
@@ -60,26 +64,28 @@ def birch(data, t, b):
                     minDist = calculateDistance(newEntry, node.entries[y].ls)
                     closest = y
             if node.entries[closest].child is None:
-                closestLeaf = node.entries[closest]
+                closestLeafEntry = node.entries[closest]
                 distance = minDist
                 break
             node = node.entries[closest]
-
+        print distance
         # 2. Modifying the leaf
-
         # Would a merge violate the threshold  condition?
         if distance < t:
             print 'no violation'
             # Update the CF entry for the leaf
-            closestLeaf.count = closestLeaf.count + 1
+            closestLeafEntry.update(newEntry)
 
         else:
             print 'violation'
-            # Would a merge violate the branching factor?
-            if len(node.entries) < b:
-                print 'add node'
-            else:
+            # Add a new entry
+            node.entries.append(CFEntry(newEntry))
+            # Does the merge violate the branching factor?
+            if len(node.entries) >= b:
                 print 'split'
+                # Find the two farthest point
+                node.findFarthestEntries()
+
 
 
 
@@ -89,4 +95,4 @@ def birch(data, t, b):
                 # return list_of_labels
 
 
-birch(np.matrix('5.1 3.5 1.4 0.2 0;4.7 3.2 1.3 0.2 0;5 3.6 1.4 0.2 0;4.6 3.4 1.4 0.3 0'), 10, 5)
+birch(np.matrix('5.1 3.5 1.4 0.2 0;4.7 3.2 1.3 0.2 0;5 3.6 1.4 0.2 0;4.6 3.4 1.4 0.3 0'), 2.8, 1)
