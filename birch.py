@@ -84,12 +84,10 @@ def birch(data, t, b):
             if len(node.entries) >= b:
                 print 'split'
                 # Find the two farthest point
-                node.findFarthestEntries()
+                farthestPoints = node.findFarthestEntries()
+                # Insert non-leaf entry into the parent node
 
 
-
-
-    # 3. Modifying the path to the leaf
 
 
     # return list_of_labels
