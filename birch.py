@@ -13,8 +13,11 @@ class CFNode(object):
         for i in range(0,len(self.entries)):
             for j in range(0, len(self.entries)):
                 if i != j:
-                    print i,j
-                    #calculateDistance(self.entries[i], self.entries[j])
+                    dist = calculateDistance(self.entries[i], self.entries[j])
+                    if dist > maxDist:
+                        maxDist = dist
+                        x = i
+                        y = j
         return [self.entries[x], self.entries[y]]
 
 
@@ -30,21 +33,18 @@ class CFEntry(object):
         # for each dimension
         for x in range(0, self.ls.shape[1] - 1):
             self.ls[0,x] = (self.ls[0,x] * self.count + newEntry.ls[0,x]) / (self.count+1)
-
         self.count += self.count
 
 
 def calculateDistance(a, b):
     distance = 0
     for x in range(0, a.ls.shape[1]-1):
-        print x
-        # distance = distance + math.sqrt(a.ls[0, x] ** 2 + b[0, x] ** 2)
+        s = math.sqrt(a.ls[0, x] ** 2 + b.ls[0, x] ** 2)
+        distance = distance + s
     return distance / a.ls.shape[1]
 
 
-
 def birch(data, t, b):
-
     # building a CF-tree
     # init with first item
     root = CFNode(CFEntry(data[0, ]))
@@ -60,15 +60,15 @@ def birch(data, t, b):
             minDist = 1000
             closest = None
             for y in range(0, len(node.entries)):  # calculate distances to node entries
-                if calculateDistance(newEntry, node.entries[y].ls) < minDist:
-                    minDist = calculateDistance(newEntry, node.entries[y].ls)
+                dist = calculateDistance(newEntry, node.entries[y])
+                if dist < minDist:
+                    minDist = dist
                     closest = y
             if node.entries[closest].child is None:
                 closestLeafEntry = node.entries[closest]
                 distance = minDist
                 break
-            node = node.entries[closest]
-        print distance
+            node = node.entries[closest].child
         # 2. Modifying the leaf
         # Would a merge violate the threshold  condition?
         if distance < t:
@@ -79,7 +79,7 @@ def birch(data, t, b):
         else:
             print 'violation'
             # Add a new entry
-            node.entries.append(CFEntry(newEntry))
+            node.entries.append(newEntry)
             # Does the merge violate the branching factor?
             if len(node.entries) >= b:
                 print 'split'
@@ -89,10 +89,10 @@ def birch(data, t, b):
 
 
 
-                # 3. Modifying the path to the leaf
+    # 3. Modifying the path to the leaf
 
 
-                # return list_of_labels
+    # return list_of_labels
 
 
 birch(np.matrix('5.1 3.5 1.4 0.2 0;4.7 3.2 1.3 0.2 0;5 3.6 1.4 0.2 0;4.6 3.4 1.4 0.3 0'), 2.8, 1)
