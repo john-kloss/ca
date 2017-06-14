@@ -39,15 +39,41 @@ class CFEntry(object):
 def calculateDistance(a, b):
     distance = 0
     for x in range(0, a.ls.shape[1]-1):
-        s = math.sqrt(a.ls[0, x] ** 2 + b.ls[0, x] ** 2)
+        s = math.sqrt((a.ls[0, x] - b.ls[x]) ** 2)
         distance = distance + s
-    return distance / a.ls.shape[1]
+    return distance
+
+
+def getListOfLabels(root, data):
+    node = root
+    listOfLabels = []
+    for x in range(0, data.shape[0]):
+        while True:
+            minDist = 1000
+            closest = None
+            for y in range(0, len(node.entries)):  # calculate distances to node entries
+                dist = calculateDistance(CFEntry(data[x, ]), node.entries[y])
+                if dist < minDist:
+                    minDist = dist
+                    closest = y
+            if node.entries[closest].child is None:
+                listOfLabels.append(node.entries[closest].ls)
+                break
+            node = node.entries[closest].child
+
+    print listOfLabels
+    return listOfLabels
+
 
 
 def birch(data, t, b):
     # building a CF-tree
     # init with first item
     root = CFNode(CFEntry(data[0, ]))
+    root = CFNode(None)
+    root.isLeaf = False
+    root.entries = [CFEntry([1,1,1,1]), CFEntry([2,2,2,2])]
+    return getListOfLabels(root, data)
 
     # sort all elements into tree based on distance
     for x in range(1, data.shape[0]):
@@ -86,6 +112,8 @@ def birch(data, t, b):
                 # Find the two farthest point
                 farthestPoints = node.findFarthestEntries()
                 # Insert non-leaf entry into the parent node
+
+
 
 
 

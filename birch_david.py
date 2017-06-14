@@ -92,7 +92,7 @@ class CFInnerNode(object):
                     idxs_to_pop.append(x)
 
             idxs_to_pop.append(index_p2)  # needed so that during the loop no elemts get removed, which would cause wrong indices
-            idxs_to_pop.sort();
+            idxs_to_pop.sort()
             already_popped = 0
             for x in range(len(idxs_to_pop)) :
                 right_side.addLeafNode(self.childs[idxs_to_pop[x] - already_popped])
@@ -102,8 +102,9 @@ class CFInnerNode(object):
 
         else:
             self.parent.addLeafNode(self.popChild(-1))
-
+        print 'split'
         return 0
+
 
 def farthest_points(points):
     x = y = 0
@@ -141,8 +142,8 @@ class CFLeafNode(object):
     def update_CF(self):
         self.CF = CF(len(self.data_ps), np.zeros(self.d), np.zeros(self.d))
         for x in range(0, len(self.data_ps)):
-            self.CF.ls = self.CF.ls + self.data_ps[x].data;
-            self.CF.ss = self.CF.ss + self.data_ps[x].data * self.data_ps[x].data;
+            self.CF.ls = self.CF.ls + self.data_ps[x].data
+            self.CF.ss = self.CF.ss + self.data_ps[x].data * self.data_ps[x].data
 
         self.centroid = self.CF.ls * (1 / self.CF.N)
 
@@ -209,6 +210,15 @@ def calculateDistance(a, b, metric):
         return np.linalg.norm(np.abs(a.centroid - b.centroid))
     return 0
 
+def countLeaves(node):
+    leaf_count = 0
+    for x in range(0, len(node.childs)):
+        if node.childs[x].isLeafNode:
+            leaf_count += 1
+        else:
+            leaf_count += countLeaves(node.childs[x])
+    return leaf_count
+
 
 def birch(data, t, b):
     # building a CF-tree
@@ -225,7 +235,7 @@ def birch(data, t, b):
     leaf_node = CFLeafNode(len(data[0]),t)
     leaf_node.addData_p(data_points[0])
 
-    root.addLeafNode(leaf_node);
+    root.addLeafNode(leaf_node)
 
     for x in range(1, len(data)):
         newEntry = data_points[x]
@@ -234,7 +244,6 @@ def birch(data, t, b):
         while(root.parent is not None):
             root = root.parent
         node = root
-
         while True:
             minDist = 999999999
             closest = None
@@ -245,18 +254,35 @@ def birch(data, t, b):
                     closest = y
             if node.childs[closest].isLeafNode: # we are at a leaf
                 distance = minDist
-                parent =  node.childs[closest].parent
+                parent = node.childs[closest].parent
                 break
             node = node.childs[closest]
 
         # 2. Modifying the leaf   merge then check for threshold condition
         # Would a merge violate the threshold  condition?
         node.childs[closest].addData_p(newEntry)
+        print root.getAllDataInCluster()
 
-    test = 0;
+
+    test = 0
+
+    print countLeaves(root)
+    #print root.childs[1].getAllDataInCluster()
+    #print len(root.childs[0].childs), len(root.childs[1].childs)
+
     # return list_of_labels
 file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
 dataset = arff.load(file1)
-cl_data = np.array([x[:-1] for x in dataset['data']])
 
-birch(cl_data, 0.03, 5)
+#cl_data = np.array([1[:-1] for x in dataset['data']])
+cl_data = np.array([
+[5.1,3.5,1.4,0.2,0],##
+[4.9,3,1.4,0.2,0],#
+[4.7,3.2,1.3,0.2,0],#
+[4.6,3.1,1.5,0.2,0],##
+[5,3.6,1.4,0.2,0],#
+[5.4,3.9,1.7,0.4,0],#
+[4.6,3.4,1.4,0.3,0],#
+[5,3.4,1.5,0.2,0]])#
+
+birch(cl_data,0.03, 5)
