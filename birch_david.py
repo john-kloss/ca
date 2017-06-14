@@ -76,8 +76,8 @@ class CFInnerNode(object):
         index_farthest_points = farthest_points(self.childs)
         index_p1 = min(index_farthest_points[0],index_farthest_points[1])
         index_p2 = max(index_farthest_points[0],index_farthest_points[1])
-
         #check if we have a parent or if we are the root
+
         if( self.parent is None ) :
             new_root = CFInnerNode(self.t,self.b,self.d)
             right_side = CFInnerNode(self.t, self.b, self.d)
@@ -95,14 +95,14 @@ class CFInnerNode(object):
             idxs_to_pop.sort()
             already_popped = 0
             for x in range(len(idxs_to_pop)) :
-                right_side.addLeafNode(self.childs[idxs_to_pop[x] - already_popped])
+                right_side.addLeafNode(self.popChild(idxs_to_pop[x] - already_popped))  #hier fehlte nen popChild -_-
                 already_popped = already_popped + 1
             new_root.addLeafNode(self)
             new_root.addLeafNode(right_side)
 
         else:
             self.parent.addLeafNode(self.popChild(-1))
-        print 'split'
+
         return 0
 
 
@@ -168,6 +168,7 @@ class CFLeafNode(object):
                 newLeafNode = CFLeafNode(self.d,self.t)
                 newLeafNode.addData_p(new_data_p)
                 self.parent.addLeafNode(newLeafNode)
+
                 break
 
 
@@ -261,28 +262,30 @@ def birch(data, t, b):
         # 2. Modifying the leaf   merge then check for threshold condition
         # Would a merge violate the threshold  condition?
         node.childs[closest].addData_p(newEntry)
-        print root.getAllDataInCluster()
 
+
+    while (root.parent is not None):
+        root = root.parent
 
     test = 0
 
-    print countLeaves(root)
-    #print root.childs[1].getAllDataInCluster()
-    #print len(root.childs[0].childs), len(root.childs[1].childs)
+
+
 
     # return list_of_labels
 file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
 dataset = arff.load(file1)
 
-#cl_data = np.array([1[:-1] for x in dataset['data']])
-cl_data = np.array([
-[5.1,3.5,1.4,0.2,0],##
-[4.9,3,1.4,0.2,0],#
-[4.7,3.2,1.3,0.2,0],#
-[4.6,3.1,1.5,0.2,0],##
-[5,3.6,1.4,0.2,0],#
-[5.4,3.9,1.7,0.4,0],#
-[4.6,3.4,1.4,0.3,0],#
-[5,3.4,1.5,0.2,0]])#
+cl_data = np.array([x[:-1] for x in dataset['data']])
 
-birch(cl_data,0.03, 5)
+cl_data2 = np.array([
+[1,3.5,1.4,0.2,0],##
+[2,3,1.4,0.2,0],#
+[3,3.2,1.3,0.2,0],#
+[4,3.1,1.5,0.2,0],##
+[5,3.6,1.4,0.2,0],#
+[6,3.9,1.7,0.4,0],#
+[7,3.4,1.4,0.3,0],#
+[8,3.4,1.5,0.2,0]])#
+
+birch(cl_data,0.03, 50)
