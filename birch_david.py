@@ -220,16 +220,25 @@ def countLeaves(node):
             leaf_count += countLeaves(node.childs[x])
     return leaf_count
 
-
+# returns the nodes that identify a cluster
 def parseTree(root, k):
     cluster = [root]
     while len(cluster) < k:
         for x in range(0, len(cluster)): # for all nodes in the cluster
-            if not cluster[x].isLeafNode: # if it's not a leave remove it and add it's leaves
+            if not cluster[x].isLeafNode: # if it's not a leaf remove it and add it's leaves
                 for y in range(0,len(cluster[x].childs)):
                     cluster.append(cluster[x].childs[y])
                 cluster.remove(cluster[x])
-        print cluster
+
+    # we've got the nodes that identify the cluster, now find all the leaves in the cluster
+    for x in range(0, len(cluster)):
+        if not cluster[x].isLeafNode:  # if it's not a leaf remove it and add it's leaves
+            cluster[x] = [cluster[x].getAllDataInCluster()]
+        else:
+            cluster[x] = [cluster[x].CF.ls]
+
+    print cluster
+    return cluster
 
 
 def birch(data, t, b):
@@ -279,7 +288,7 @@ def birch(data, t, b):
         root = root.parent
 
     #parse tree from root and receive k cluster
-    parseTree(root, 5)
+    cluster = parseTree(root, 5)
 
     # return list_of_labels
 file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
@@ -288,13 +297,13 @@ dataset = arff.load(file1)
 #cl_data = np.array([x[:-1] for x in dataset['data']])
 
 cl_data = np.array([
-[1,3.5,1.4,0.2,0],##
-[2,3,1.4,0.2,0],#
-[3,3.2,1.3,0.2,0],#
-[4,3.1,1.5,0.2,0],##
-[5,3.6,1.4,0.2,0],#
-[6,3.9,1.7,0.4,0],#
-[7,3.4,1.4,0.3,0],#
-[8,3.4,1.5,0.2,0]])#
+[1,3.5,1.4,0.2,0],
+[2,3,1.4,0.2,0],
+[3,3.2,1.3,0.2,0],
+[4,3.1,1.5,0.2,0],
+[5,3.6,1.4,0.2,0],
+[6,3.9,1.7,0.4,0],
+[7,3.4,1.4,0.3,0],
+[8,3.4,1.5,0.2,0]])
 
 birch(cl_data,0.03, 3)
