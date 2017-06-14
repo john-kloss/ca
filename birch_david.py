@@ -221,6 +221,17 @@ def countLeaves(node):
     return leaf_count
 
 
+def parseTree(root, k):
+    cluster = [root]
+    while len(cluster) < k:
+        for x in range(0, len(cluster)): # for all nodes in the cluster
+            if not cluster[x].isLeafNode: # if it's not a leave remove it and add it's leaves
+                for y in range(0,len(cluster[x].childs)):
+                    cluster.append(cluster[x].childs[y])
+                cluster.remove(cluster[x])
+        print cluster
+
+
 def birch(data, t, b):
     # building a CF-tree
     # start with a node which we call root
@@ -267,18 +278,16 @@ def birch(data, t, b):
     while (root.parent is not None):
         root = root.parent
 
-    test = 0
-
-
-
+    #parse tree from root and receive k cluster
+    parseTree(root, 5)
 
     # return list_of_labels
 file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
 dataset = arff.load(file1)
 
-cl_data = np.array([x[:-1] for x in dataset['data']])
+#cl_data = np.array([x[:-1] for x in dataset['data']])
 
-cl_data2 = np.array([
+cl_data = np.array([
 [1,3.5,1.4,0.2,0],##
 [2,3,1.4,0.2,0],#
 [3,3.2,1.3,0.2,0],#
@@ -288,4 +297,4 @@ cl_data2 = np.array([
 [7,3.4,1.4,0.3,0],#
 [8,3.4,1.5,0.2,0]])#
 
-birch(cl_data,0.03, 50)
+birch(cl_data,0.03, 3)
