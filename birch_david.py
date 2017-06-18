@@ -235,10 +235,19 @@ def parseTree(root, k):
         if not cluster[x].isLeafNode:  # if it's not a leaf remove it and add it's leaves
             cluster[x] = [cluster[x].getAllDataInCluster()]
         else:
-            cluster[x] = [cluster[x].CF.ls]
+            cluster[x] = [[cluster[x].CF.ls]]
 
-    print cluster
     return cluster
+
+
+def getLabels(cluster, nodes):
+    labels = []
+    for x in range(0, len(nodes)):
+        for y in range(0, len(cluster)):
+            for z in range(0, len(cluster[y][0])):
+                if (nodes[x] == cluster[y][0][z]).all():
+                    labels.append([y+1])
+    return labels
 
 
 def birch(data, t, b):
@@ -288,9 +297,11 @@ def birch(data, t, b):
         root = root.parent
 
     #parse tree from root and receive k cluster
-    cluster = parseTree(root, 5)
+    cluster = parseTree(root, 3)
+    return getLabels(cluster, cl_data)
 
-    # return list_of_labels
+
+
 file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
 dataset = arff.load(file1)
 
