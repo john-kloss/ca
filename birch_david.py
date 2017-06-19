@@ -2,7 +2,7 @@ import numpy as np
 import arff
 
 class CFInnerNode(object):
-    def __init__(self, t, b, d):
+    def __init__(self, t, b, d, metric):
         self.childs = []
         self.isLeaf = False
         self.parent = None
@@ -10,7 +10,7 @@ class CFInnerNode(object):
         self.t = t
         self.b = b
         self.d = d  #dimension
-
+        self.metric = metric
         self.isLeafNode = False
         self.centroid = 0
         self.radius = 0
@@ -73,21 +73,21 @@ class CFInnerNode(object):
             self.parent.update(self),
 
     def split(self):
-        index_farthest_points = farthest_points(self.childs)
+        index_farthest_points = farthest_points(self.childs,self.metric)
         index_p1 = min(index_farthest_points[0],index_farthest_points[1])
         index_p2 = max(index_farthest_points[0],index_farthest_points[1])
         #check if we have a parent or if we are the root
 
         if( self.parent is None ) :
-            new_root = CFInnerNode(self.t,self.b,self.d)
-            right_side = CFInnerNode(self.t, self.b, self.d)
+            new_root = CFInnerNode(self.t,self.b,self.d,self.metric)
+            right_side = CFInnerNode(self.t, self.b, self.d,self.metric)
             idxs_to_pop = []
             for x in range(len(self.childs)):   #decide where which child lands
                 if x == index_p1:
                     continue
                 if x == index_p2:
                     continue
-                if(calculateDistance(self.childs[index_p2],self.childs[x],'euclidian') <=  calculateDistance(self.childs[index_p1],self.childs[x],'euclidian')):
+                if(calculateDistance(self.childs[index_p2],self.childs[x],self.metric) <=  calculateDistance(self.childs[index_p1],self.childs[x],self.metric)):
                     #distance to p2 is smaller
                     idxs_to_pop.append(x)
 
@@ -106,13 +106,13 @@ class CFInnerNode(object):
         return 0
 
 
-def farthest_points(points):
+def farthest_points(points, metric):
     x = y = 0
     maxDist= 0
     for i in range(0, len(points)):
         for j in range(0, len(points)):
             if i != j:
-                dist = calculateDistance(points[i], points[j],'euclidian')
+                dist = calculateDistance(points[i], points[j],metric)
                 if dist > maxDist:
                     maxDist = dist
                     x = i
@@ -228,14 +228,16 @@ def parseTree(root, k):
             if not cluster[x].isLeafNode: # if it's not a leaf remove it and add it's leaves
                 for y in range(0,len(cluster[x].childs)):
                     cluster.append(cluster[x].childs[y])
+                    if  len(cluster) > k:
+                        continue
                 cluster.remove(cluster[x])
-
+    cluster = cluster[:k]
     # we've got the nodes that identify the cluster, now find all the leaves in the cluster
     for x in range(0, len(cluster)):
         if not cluster[x].isLeafNode:  # if it's not a leaf remove it and add it's leaves
-            cluster[x] = [cluster[x].getAllDataInCluster()]
+            cluster[x] = cluster[x].getAllDataInCluster()
         else:
-            cluster[x] = [[cluster[x].CF.ls]]
+            cluster[x] = [cluster[x].CF.ls]
 
     return cluster
 
@@ -243,17 +245,31 @@ def parseTree(root, k):
 def getLabels(cluster, nodes):
     labels = []
     for x in range(0, len(nodes)):
+        found = False
         for y in range(0, len(cluster)):
-            for z in range(0, len(cluster[y][0])):
-                if (nodes[x] == cluster[y][0][z]).all():
-                    labels.append([y+1])
+                for z in range(0,len(cluster[y])):
+                    if (nodes[x] == cluster[y][z]).all():
+                        found = True
+                        print y
+                        labels.append(y)
+                        break
+        if not found:
+            labels.append(99)
+
+
     return labels
 
 
-def birch(data, t, b):
+def birch(path, threshold, b, cluster, metric):
+
     # building a CF-tree
     # start with a node which we call root
-    root = CFInnerNode(t,b,len(data[0]))
+    file1 = open(path, "rb")
+    dataset = arff.load(file1)
+
+    data = np.array([x[:-1] for x in dataset['data']])
+
+    root = CFInnerNode(threshold,b,len(data[0]),metric)
 
     # creating data points from rows
     data_points = [0 for i in range(len(data))]
@@ -262,7 +278,7 @@ def birch(data, t, b):
 
 
     # add first node by hand
-    leaf_node = CFLeafNode(len(data[0]),t)
+    leaf_node = CFLeafNode(len(data[0]),threshold)
     leaf_node.addData_p(data_points[0])
 
     root.addLeafNode(leaf_node)
@@ -278,7 +294,7 @@ def birch(data, t, b):
             minDist = 999999999
             closest = None
             for y in range(0, len(node.childs)):  # calculate distances to node entries
-                dist = calculateDistance(newEntry, node.childs[y],'euclidian')
+                dist = calculateDistance(newEntry, node.childs[y],metric)
                 if dist < minDist:
                     minDist = dist
                     closest = y
@@ -297,24 +313,9 @@ def birch(data, t, b):
         root = root.parent
 
     #parse tree from root and receive k cluster
-    cluster = parseTree(root, 3)
-    return getLabels(cluster, cl_data)
+    cluster = parseTree(root, cluster)
+    getLabels(cluster, data)
 
 
 
-file1 = open('./data/' + 'c_Iris' + '.arff', "rb")
-dataset = arff.load(file1)
-
-#cl_data = np.array([x[:-1] for x in dataset['data']])
-
-cl_data = np.array([
-[1,3.5,1.4,0.2,0],
-[2,3,1.4,0.2,0],
-[3,3.2,1.3,0.2,0],
-[4,3.1,1.5,0.2,0],
-[5,3.6,1.4,0.2,0],
-[6,3.9,1.7,0.4,0],
-[7,3.4,1.4,0.3,0],
-[8,3.4,1.5,0.2,0]])
-
-birch(cl_data,0.03, 3)
+birch('./data/' + 'c_Iris' + '.arff',0.03, 20, 7,'euclidian')
