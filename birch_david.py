@@ -1,8 +1,9 @@
 import numpy as np
 import arff
 
+
 class CFInnerNode(object):
-    def __init__(self, t, b, d, metric):
+    def __init__(self, t, b, d, metric, disMatrix, dataMatrix):
         self.childs = []
         self.isLeaf = False
         self.parent = None
@@ -13,12 +14,15 @@ class CFInnerNode(object):
         self.metric = metric
         self.isLeafNode = False
         self.centroid = 0
-        self.radius = 0
         self.diameter = 0
-
+        self.maxDiameter = 0
+        self.distanceMatrix = disMatrix
+        self.dataMatrix = dataMatrix
+        self.idList = []
 
     def addLeafNode(self,CFLeafNode):
         self.childs.append(CFLeafNode)
+        self.idList.append(CFLeafNode.idList)
         CFLeafNode.parent = self
         self.update(CFLeafNode)
         if(len(self.childs) == self.b): #need to split
@@ -26,24 +30,9 @@ class CFInnerNode(object):
 
     def popChild(self,idx):
         popped_child = self.childs.pop(idx)
+        self.idList.pop(idx)
         self.update(self)
         return popped_child
-
-    def getAllDataInCluster(self):
-        list = []
-
-        self._getAllDataInCluster(self, list)
-
-        return list
-
-    def _getAllDataInCluster(self, child, list):
-        if(child.isLeafNode):
-            for x in range (0,len(child.data_ps)):
-                list.append(child.data_ps[x].data)
-        else :
-            if(len(child.childs) > 0):
-                for x in range(0,len(child.childs)) :
-                    child._getAllDataInCluster(child.childs[x], list)
 
     def update(self, CFNode):
         self.CF = CF(0,np.zeros(self.d),np.zeros(self.d))
@@ -51,23 +40,9 @@ class CFInnerNode(object):
             self.CF.add(self.childs[x].CF)
 
         self.centroid = np.divide(self.CF.ls,self.CF.N)
-        data = self.getAllDataInCluster()
-        self.radius = [0 for i in range(0,self.d)]
-
-        for x in range(0, len(data)) :
-            self.radius = self.radius + (data[x]- self.centroid) * (data[x] - self.centroid)
-
-        self.radius = np.sqrt(np.divide(self.radius,self.CF.N) )
-
-        self.diameter = [0 for i in range(0,self.d)]
 
         if self.CF.N > 1 :
-            for x in range(0, len(data)) :
-                for y in range(0, len(data)) :
-                    self.diameter = self.diameter + (data[x] - data[y]) * (data[x] - data[y])
-
-            self.diameter = np.sqrt(self.diameter / (self.CF.N * (self.CF.N - 1 ) ))
-
+            self.diameter = self.distanceMatrix[list(flatten(self.idList))]
 
         if(self.parent != None) :
             self.parent.update(self),
@@ -79,8 +54,8 @@ class CFInnerNode(object):
         #check if we have a parent or if we are the root
 
         if( self.parent is None ) :
-            new_root = CFInnerNode(self.t,self.b,self.d,self.metric)
-            right_side = CFInnerNode(self.t, self.b, self.d,self.metric)
+            new_root = CFInnerNode(self.t,self.b,self.d,self.metric, self.distanceMatrix, self.dataMatrix)
+            right_side = CFInnerNode(self.t, self.b, self.d,self.metric, self.distanceMatrix, self.dataMatrix)
             idxs_to_pop = []
             for x in range(len(self.childs)):   #decide where which child lands
                 if x == index_p1:
@@ -95,7 +70,7 @@ class CFInnerNode(object):
             idxs_to_pop.sort()
             already_popped = 0
             for x in range(len(idxs_to_pop)) :
-                right_side.addLeafNode(self.popChild(idxs_to_pop[x] - already_popped))  #hier fehlte nen popChild -_-
+                right_side.addLeafNode(self.popChild(idxs_to_pop[x] - already_popped))
                 already_popped = already_popped + 1
             new_root.addLeafNode(self)
             new_root.addLeafNode(right_side)
@@ -120,69 +95,53 @@ def farthest_points(points, metric):
     return [x,y]
 
 class CFLeafNode(object):
-    def __init__(self,d,t):
+    def __init__(self,d,t,disMatrix,dataMatrix):
         self.data_ps = []
         self.CF = CF(0,np.zeros(d),np.zeros(d))
         self.isLeafNode = True
         self.parent = None
         self.d = d
         self.t = t
+        self.distanceMatrix = disMatrix
+        self.dataMatrix = dataMatrix
+        self.idList = []
+        self.diameter = 0
 
     def addData_p(self,data_p):
-        self.data_ps.append(data_p)
-        data_p.parent = self
-        self.update_CF()
-
-    def removeData_p(self,idx):
-        self.data_ps[-1].parent = None
-        data_p_deleted = self.data_ps.pop(-1)
-        self.update_CF()
-        return data_p_deleted
+        # check if diameter would be too big
+        self.idList.append(data_p.index)
+        testdiameter = self.distanceMatrix[self.idList][:,self.idList].max()
+        if testdiameter  > self.t:  # need create or add into another leave
+            self.idList.pop(-1)
+            newLeafNode = CFLeafNode(self.d, self.t, self.distanceMatrix, self.dataMatrix)
+            newLeafNode.addData_p(data_p)
+            self.parent.addLeafNode(newLeafNode)
+        else:
+            self.data_ps.append(data_p)
+            data_p.parent = self
+            self.update_CF()
 
     def update_CF(self):
-        self.CF = CF(len(self.data_ps), np.zeros(self.d), np.zeros(self.d))
-        for x in range(0, len(self.data_ps)):
-            self.CF.ls = self.CF.ls + self.data_ps[x].data
-            self.CF.ss = self.CF.ss + self.data_ps[x].data * self.data_ps[x].data
+        self.CF.N = self.CF.N + 1
+        self.CF.ls = self.CF.ls + self.data_ps[-1].data
+        self.CF.ss = self.CF.ss + self.data_ps[-1].data * self.data_ps[-1].data
 
-        self.centroid = self.CF.ls * (1 / self.CF.N)
+        self.centroid = self.CF.ls * (1.0 / self.CF.N)
 
-        self.radius = [0 for i in range(0, self.d)]
-
-        for x in range(0, len(self.data_ps)):
-            self.radius = self.radius + (self.data_ps[x].data - self.centroid) * (self.data_ps[x].data - self.centroid)
-
-        self.radius = np.sqrt(np.divide(self.radius, self.CF.N))
-
-        self.diameter = [0 for i in range(0, self.d)]
         if (self.CF.N > 1):
-            for x in range(0, self.CF.N):
-                for y in range(0, self.CF.N):
-                    self.diameter = self.diameter + (self.data_ps[x].data - self.data_ps[y].data) * (self.data_ps[x].data - self.data_ps[y].data)
-
-            self.diameter = np.sqrt(self.diameter / (self.CF.N * (self.CF.N - 1)))
-
-        for x in range(0, self.d):
-            if self.diameter[x] > self.t :  # need create new LeafNode
-                new_data_p = self.removeData_p(-1)
-                newLeafNode = CFLeafNode(self.d,self.t)
-                newLeafNode.addData_p(new_data_p)
-                self.parent.addLeafNode(newLeafNode)
-
-                break
-
-
+            self.diameter = self.distanceMatrix[self.idList][:,self.idList].max()
 
         if (self.parent != None):
             self.parent.update(self),
 
 class data_p(object):
-    def __init__(self,data):
+    def __init__(self,data, m_index):
         self.data = np.array(data)
         self.classLabel = 0
         self.isData = True
         self.parent = None
         self.centroid = np.array(data)  # for comparison
+        self.index = m_index
 
 class CF(object):
     def __init__(self,N,ls,ss):
@@ -211,54 +170,56 @@ def calculateDistance(a, b, metric):
         return np.linalg.norm(np.abs(a.centroid - b.centroid))
     return 0
 
-def countLeaves(node):
-    leaf_count = 0
-    for x in range(0, len(node.childs)):
-        if node.childs[x].isLeafNode:
-            leaf_count += 1
-        else:
-            leaf_count += countLeaves(node.childs[x])
-    return leaf_count
-
 # returns the nodes that identify a cluster
 def parseTree(root, k):
-    cluster = [root]
-    while len(cluster) < k:
+    cluster = root.childs
+    maxiter = 0
+    while len(cluster) < k and maxiter < 50 :
         for x in range(0, len(cluster)): # for all nodes in the cluster
-            if not cluster[x].isLeafNode: # if it's not a leaf remove it and add it's leaves
+            if not cluster[x].isLeafNode and (len(cluster) + 1) < k : # if it's not a leaf remove it and add it's leaves
                 for y in range(0,len(cluster[x].childs)):
                     cluster.append(cluster[x].childs[y])
-                    if  len(cluster) > k:
-                        continue
                 cluster.remove(cluster[x])
+                break
+        maxiter = maxiter + 1
     cluster = cluster[:k]
     # we've got the nodes that identify the cluster, now find all the leaves in the cluster
+    # or add just the new indices ;)
     for x in range(0, len(cluster)):
-        if not cluster[x].isLeafNode:  # if it's not a leaf remove it and add it's leaves
-            cluster[x] = cluster[x].getAllDataInCluster()
-        else:
-            cluster[x] = [cluster[x].CF.ls]
+        cluster[x] = list(flatten(cluster[x].idList))
 
     return cluster
 
 
 def getLabels(cluster, nodes):
-    labels = []
+
     for x in range(0, len(nodes)):
         found = False
         for y in range(0, len(cluster)):
-                for z in range(0,len(cluster[y])):
-                    if (nodes[x] == cluster[y][z]).all():
+                if nodes[x] in cluster[y]:
                         found = True
                         print y
-                        labels.append(y)
                         break
         if not found:
-            labels.append(99)
+            print len(cluster) + 1
 
 
-    return labels
+def createDistanceMatrix(data,metric):
+    distanceMatrix = np.zeros(shape=(len(data),len(data)))
+    for x in range(0,len(data)):
+        for y in range(0, len(data)):
+            distanceMatrix[x][y] = calculateDistance(data[x],data[y],metric)
 
+    return distanceMatrix;
+
+
+def flatten(L):
+    for item in L:
+        if isinstance(item, list):
+            for subitem in item:
+                yield subitem
+        else:
+            yield item
 
 def birch(path, threshold, b, cluster, metric):
 
@@ -269,16 +230,16 @@ def birch(path, threshold, b, cluster, metric):
 
     data = np.array([x[:-1] for x in dataset['data']])
 
-    root = CFInnerNode(threshold,b,len(data[0]),metric)
-
     # creating data points from rows
     data_points = [0 for i in range(len(data))]
     for x in range(0, len(data)):
-        data_points[x] = data_p(data[x])
+        data_points[x] = data_p(data[x],x)
 
+    distanceMatrix = createDistanceMatrix(data_points, metric)
 
+    root = CFInnerNode(threshold, b, len(data[0]), metric, distanceMatrix, data)
     # add first node by hand
-    leaf_node = CFLeafNode(len(data[0]),threshold)
+    leaf_node = CFLeafNode(len(data[0]),threshold, distanceMatrix,data)
     leaf_node.addData_p(data_points[0])
 
     root.addLeafNode(leaf_node)
@@ -308,14 +269,14 @@ def birch(path, threshold, b, cluster, metric):
         # Would a merge violate the threshold  condition?
         node.childs[closest].addData_p(newEntry)
 
-
     while (root.parent is not None):
         root = root.parent
 
+
     #parse tree from root and receive k cluster
-    cluster = parseTree(root, cluster)
-    getLabels(cluster, data)
+    cluster = parseTree(root,cluster)
+    nodes_idxs = [i for i in range(len(data))]
+    getLabels(cluster, nodes_idxs)
 
 
-
-birch('./data/' + 'c_Iris' + '.arff',0.03, 20, 7,'euclidian')
+birch('./data/' + 'c_Moons1' + '.arff',2, 1500, 2,'euclidian')
